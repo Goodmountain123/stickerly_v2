@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#ff72a6">
+  <title>Stickerly 관리자</title>
+  <link rel="stylesheet" href="./admin.css">
+</head>
+<body>
+  <main class="admin">
+    <header class="admin__header">
+      <div><h1>Stickerly 관리자</h1><p>한 팩 안의 스티커와 배경을 함께 관리해요.</p></div>
+      <button id="logout" class="button secondary" hidden>로그아웃</button>
+    </header>
+
+    <section id="setup" class="notice" hidden>
+      <strong>Supabase 연결이 필요해요.</strong>
+      <span><code>js/supabase-config.js</code>에 URL과 anon key를 입력하세요.</span>
+    </section>
+
+    <section id="login" class="panel">
+      <h2>관리자 로그인</h2>
+      <form id="login-form" class="form">
+        <input id="email" type="email" placeholder="이메일" required>
+        <input id="password" type="password" placeholder="비밀번호" required>
+        <button class="button">로그인</button>
+      </form>
+    </section>
+
+    <section id="dashboard" hidden>
+      <section id="import-box" class="notice import-box">
+        <div>
+          <strong>기존 어셋 통합</strong>
+          <span>현재 앱에 들어 있는 스티커팩과 배경을 Supabase로 옮겨 모두 관리합니다.</span>
+        </div>
+        <button id="import-local-assets" class="button">기존 어셋 가져오기</button>
+      </section>
+
+      <nav class="tabs">
+        <button class="tab is-on" data-tab="packs">어셋 팩</button>
+        <button class="tab" data-tab="backgrounds">미분류 배경</button>
+        <button class="tab" data-tab="messages">환영 문구</button>
+        <button class="tab" data-tab="music">음악</button>
+      </nav>
+
+      <section id="packs-panel">
+        <button id="open-pack-modal" class="button add-button">＋ 어셋 팩 추가</button>
+        <div class="selection-bar">
+          <span id="pack-selection-count">선택 0개</span>
+          <button id="delete-selected-packs" class="button danger" disabled>선택한 팩 제거</button>
+        </div>
+        <div id="pack-list" class="list"></div>
+      </section>
+
+      <section id="backgrounds-panel" hidden>
+        <button id="open-background-modal" class="button add-button">＋ 미분류 배경 추가</button>
+        <div class="selection-bar">
+          <span id="background-selection-count">선택 0개</span>
+          <button id="move-selected-unassigned-backgrounds" class="button" disabled>팩으로 이동</button>
+          <button id="delete-selected-backgrounds" class="button danger" disabled>선택한 배경 제거</button>
+        </div>
+        <div id="background-list" class="grid"></div>
+      </section>
+
+      <section id="messages-panel" class="panel messages-panel" hidden>
+        <h2>프로젝트 화면 환영 문구</h2>
+        <p>한 줄에 문구 하나씩 입력해 주세요. 10초마다 랜덤으로 바뀝니다.</p>
+        <textarea id="welcome-messages" rows="8"></textarea>
+        <button id="save-welcome-messages" class="button">문구 저장</button>
+      </section>
+      <section id="music-panel" class="panel music-panel" hidden>
+        <h2>재생 목록</h2>
+        <p>음악 파일을 올리면 앱 상단 플레이어에 순서대로 보여요.</p>
+        <button id="upload-music" class="button add-button" type="button">＋ 음악 업로드</button>
+        <input id="music-files" type="file" accept="audio/*" multiple hidden>
+        <div id="music-list" class="music-list"></div>
+      </section>
+    </section>
+  </main>
+  <div id="asset-modal" class="modal" hidden>
+    <form id="asset-modal-form" class="modal__card">
+      <h2 id="asset-modal-title"></h2>
+      <input id="asset-modal-name" placeholder="이름" required>
+      <input id="asset-modal-files" type="file" accept="image/*">
+      <div class="modal__actions">
+        <button id="asset-modal-cancel" type="button" class="button secondary">취소</button>
+        <button class="button">추가</button>
+      </div>
+    </form>
+  </div>
+  <div id="move-stickers-modal" class="modal" hidden>
+    <form id="move-stickers-form" class="modal__card">
+      <h2 id="move-assets-title">어셋 이동</h2>
+      <p id="move-assets-description">선택한 어셋을 이동할 팩을 골라 주세요.</p>
+      <select id="move-stickers-target" required></select>
+      <div class="modal__actions">
+        <button id="move-stickers-cancel" type="button" class="button secondary">취소</button>
+        <button class="button">이동</button>
+      </div>
+    </form>
+  </div>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="./js/admin.js?v=20260623-3"></script>
+</body>
+</html>
