@@ -17,6 +17,7 @@ abstract final class StickerlyAssets {
   static const undo = '$_ui/undo.png';
   static const up = '$_ui/up.png';
   static const vertical = '$_ui/vertical.png';
+  static const storeBanner = '$_ui/store_banner.png';
 
   static const flipHorizontal = '$_menu/horizontal.png';
   static const flipVertical = '$_menu/vertical.png';

@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:stickerly_v2/app/assets/stickerly_assets.dart';
 import 'package:stickerly_v2/app/theme/stickerly_colors.dart';
 import 'package:stickerly_v2/app/widgets/asset_file_image.dart';
+import 'package:stickerly_v2/app/widgets/back_chevron.dart';
 import 'package:stickerly_v2/core/audio/stickerly_sfx.dart';
 import 'package:stickerly_v2/features/assets/domain/asset_catalog.dart';
 import 'package:stickerly_v2/features/projects/domain/project_item.dart';
@@ -74,6 +75,7 @@ class _EditorScreenState extends State<EditorScreen>
   late final TransformationController _viewportController;
   final _canvasKey = GlobalKey();
   final _exportButtonKey = GlobalKey();
+  Rect _canvasCaptureRect = Rect.zero;
   var _historyIndex = 0;
   var _tab = _TrayTab.stickers;
   var _uiHidden = false;
@@ -140,7 +142,7 @@ class _EditorScreenState extends State<EditorScreen>
   Future<void> _close() async {
     _autosaveTimer?.cancel();
     await _captureProjectThumbnail();
-    await _save();
+    unawaited(_save());
     if (mounted) {
       StickerlySfx.play(StickerlyAssets.soundPage);
       Navigator.pop(context, _project);
@@ -159,11 +161,14 @@ class _EditorScreenState extends State<EditorScreen>
           _canvasKey.currentContext?.findRenderObject()
               as RenderRepaintBoundary?;
       if (boundary == null || boundary.size.isEmpty) return;
+      final canvasSize = _canvasCaptureRect.isEmpty
+          ? boundary.size
+          : _canvasCaptureRect.size;
       final pixelRatio = math.min(
-        2.0,
-        720 / math.max(boundary.size.width, boundary.size.height),
+        1.0,
+        360 / math.max(canvasSize.width, canvasSize.height),
       );
-      final image = await boundary.toImage(pixelRatio: pixelRatio);
+      final image = await _captureCanvasImage(boundary, pixelRatio);
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
       image.dispose();
       if (bytes == null) return;
@@ -196,8 +201,11 @@ class _EditorScreenState extends State<EditorScreen>
           _canvasKey.currentContext?.findRenderObject()
               as RenderRepaintBoundary?;
       if (boundary == null) throw StateError('캔버스를 찾지 못했어요.');
-      final pixelRatio = _project.canvasWidth / boundary.size.width;
-      final image = await boundary.toImage(pixelRatio: pixelRatio);
+      final canvasWidth = _canvasCaptureRect.isEmpty
+          ? boundary.size.width
+          : _canvasCaptureRect.width;
+      final pixelRatio = _project.canvasWidth / canvasWidth;
+      final image = await _captureCanvasImage(boundary, pixelRatio);
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
       if (bytes == null) throw StateError('이미지를 만들지 못했어요.');
       if (!mounted) return;
@@ -285,6 +293,36 @@ class _EditorScreenState extends State<EditorScreen>
         ),
       ],
     );
+  }
+
+  Future<ui.Image> _captureCanvasImage(
+    RenderRepaintBoundary boundary,
+    double pixelRatio,
+  ) async {
+    final image = await boundary.toImage(pixelRatio: pixelRatio);
+    if (_canvasCaptureRect.isEmpty) return image;
+    final crop = Rect.fromLTWH(
+      _canvasCaptureRect.left * pixelRatio,
+      _canvasCaptureRect.top * pixelRatio,
+      _canvasCaptureRect.width * pixelRatio,
+      _canvasCaptureRect.height * pixelRatio,
+    );
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.drawImageRect(
+      image,
+      crop,
+      Rect.fromLTWH(0, 0, crop.width, crop.height),
+      Paint(),
+    );
+    final picture = recorder.endRecording();
+    final cropped = await picture.toImage(
+      crop.width.round(),
+      crop.height.round(),
+    );
+    image.dispose();
+    picture.dispose();
+    return cropped;
   }
 
   void _addStickerAt(StickerPack pack, StickerAsset asset, Offset position) {
@@ -582,6 +620,7 @@ class _EditorScreenState extends State<EditorScreen>
         if (!didPop) _close();
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -592,7 +631,7 @@ class _EditorScreenState extends State<EditorScreen>
                   constraints.maxWidth <= 760 &&
                   constraints.maxHeight > constraints.maxWidth;
               final minTrayExtent = bottomTray ? 46.0 : 58.0;
-              final defaultTrayExtent = bottomTray ? 302.0 : 278.0;
+              final defaultTrayExtent = bottomTray ? 302.0 : 300.0;
               final closeThreshold = bottomTray ? 138.0 : 116.0;
               final maxTrayExtent = bottomTray
                   ? constraints.maxHeight * 0.62
@@ -618,6 +657,10 @@ class _EditorScreenState extends State<EditorScreen>
                 onStickerGrabEnd: _finishStickerGrab,
                 onTextGrabEnd: _finishTextGrab,
                 onFlipSticker: _flipSticker,
+                onCanvasRectChanged: (rect) {
+                  if (_canvasCaptureRect == rect) return;
+                  _canvasCaptureRect = rect;
+                },
               );
               final tray = _EditorTray(
                 selected: _tab,
@@ -652,7 +695,7 @@ class _EditorScreenState extends State<EditorScreen>
                     if (trayExtent <= closeThreshold) {
                       _trayExtent = minTrayExtent;
                     } else {
-                      final rowExtent = 104.0;
+                      final rowExtent = bottomTray ? 104.0 : 116.0;
                       final headerExtent = bottomTray ? 96.0 : 70.0;
                       final snaps = [
                         for (var rows = 1; rows <= 3; rows++)
@@ -834,11 +877,23 @@ class _EditorToolbar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _EditorIconButton(
-            asset: StickerlyAssets.back,
-            label: '목록으로',
+          IconButton(
             onPressed: onBack,
-            size: buttonSize,
+            tooltip: '목록으로',
+            padding: EdgeInsets.zero,
+            constraints:
+                BoxConstraints.tightFor(width: buttonSize, height: buttonSize),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(buttonSize * 0.3),
+                side: const BorderSide(color: StickerlyColors.line, width: 1.5),
+              ),
+            ),
+            icon: Opacity(
+              opacity: onBack == null ? 0.38 : 1,
+              child: BackChevronGraphic(width: buttonSize * 0.68, height: buttonSize * 0.68),
+            ),
           ),
           SizedBox(width: 7 * scale),
           Expanded(
@@ -1038,6 +1093,7 @@ class _CanvasViewport extends StatelessWidget {
     required this.onStickerGrabEnd,
     required this.onTextGrabEnd,
     required this.onFlipSticker,
+    required this.onCanvasRectChanged,
   });
 
   final StickerProject project;
@@ -1057,6 +1113,7 @@ class _CanvasViewport extends StatelessWidget {
   final void Function(String id, Offset globalPosition) onStickerGrabEnd;
   final void Function(String id, Offset globalPosition) onTextGrabEnd;
   final void Function(String id, {required bool horizontal}) onFlipSticker;
+  final ValueChanged<Rect> onCanvasRectChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1106,12 +1163,21 @@ class _CanvasViewport extends StatelessWidget {
             final local = box.globalToLocal(
               global + Offset(previewSize / 2, previewSize / 2),
             );
-            final origin = Offset(
+            final canvasOrigin = Offset(
               (constraints.maxWidth - width) / 2,
               (constraints.maxHeight - height) / 2,
             );
-            return (local - origin) / canvasScale;
+            return (local - canvasOrigin) / canvasScale;
           }
+
+          final canvasOrigin = Offset(
+            (constraints.maxWidth - width) / 2,
+            (constraints.maxHeight - height) / 2,
+          );
+          final canvasRect = canvasOrigin & Size(width, height);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            onCanvasRectChanged(canvasRect);
+          });
 
           return DragTarget<Object>(
             onAcceptWithDetails: (details) {
@@ -1138,86 +1204,80 @@ class _CanvasViewport extends StatelessWidget {
                 scaleEnabled: true,
                 onInteractionUpdate: (_) => keepSmallCanvasCentered(),
                 onInteractionEnd: (_) => keepSmallCanvasCentered(),
-                child: Center(
-                  child: SizedBox(
-                    width: width,
-                    height: height,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => onSelect(null),
-                      child: RepaintBoundary(
-                        key: repaintKey,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: StickerlyColors.ink.withValues(
-                                  alpha: 0.16,
-                                ),
-                                blurRadius: 28,
-                                offset: const Offset(0, 12),
+                child: SizedBox(
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onSelect(null),
+                    child: RepaintBoundary(
+                      key: repaintKey,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned.fromRect(
+                            rect: canvasRect,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: StickerlyColors.ink.withValues(
+                                      alpha: 0.16,
+                                    ),
+                                    blurRadius: 28,
+                                    offset: const Offset(0, 12),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              if (backgroundPath != null)
-                                Positioned.fill(
-                                  child: AssetFileImage(
-                                    path: backgroundPath,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              for (final item in <ProjectItem>[
-                                ...project.stickerItems,
-                                ...project.textItems,
-                              ]..sort((a, b) => a.zIndex.compareTo(b.zIndex)))
-                                if (item is StickerItem)
-                                  _StickerNode(
-                                    key: ValueKey(item.id),
-                                    item: item,
-                                    assetPath: _assetPath(item),
-                                    canvasScale: canvasScale,
-                                    viewportScale: () =>
-                                        transformationController.value
-                                            .getMaxScaleOnAxis(),
-                                    selected: selectedItemId == item.id,
-                                    animateIn:
-                                        recentlyAddedStickerId == item.id,
-                                    onSelect: () => onSelectSticker(item.id),
-                                    onGrabStart: onStickerGrabStart,
-                                    onGrabEnd: (globalPosition) =>
-                                        onStickerGrabEnd(
-                                          item.id,
-                                          globalPosition,
-                                        ),
-                                    onFlipHorizontal: () => onFlipSticker(
-                                      item.id,
-                                      horizontal: true,
+                              child: backgroundPath == null
+                                  ? null
+                                  : AssetFileImage(
+                                      path: backgroundPath,
+                                      fit: BoxFit.cover,
                                     ),
-                                    onFlipVertical: () => onFlipSticker(
-                                      item.id,
-                                      horizontal: false,
-                                    ),
-                                    onChanged: onUpdateSticker,
-                                  )
-                                else if (item is TextItem)
-                                  _TextNode(
-                                    key: ValueKey(item.id),
-                                    item: item,
-                                    canvasScale: canvasScale,
-                                    selected: selectedItemId == item.id,
-                                    onSelect: () => onSelect(item.id),
-                                    onGrabStart: onStickerGrabStart,
-                                    onGrabEnd: (globalPosition) =>
-                                        onTextGrabEnd(item.id, globalPosition),
-                                    onChanged: onUpdateText,
-                                  ),
-                            ],
+                            ),
                           ),
-                        ),
+                          for (final item in <ProjectItem>[
+                            ...project.stickerItems,
+                            ...project.textItems,
+                          ]..sort((a, b) => a.zIndex.compareTo(b.zIndex)))
+                            if (item is StickerItem)
+                              _StickerNode(
+                                key: ValueKey(item.id),
+                                item: item,
+                                assetPath: _assetPath(item),
+                                canvasScale: canvasScale,
+                                canvasOffset: canvasOrigin,
+                                viewportScale: () => transformationController
+                                    .value
+                                    .getMaxScaleOnAxis(),
+                                selected: selectedItemId == item.id,
+                                animateIn: recentlyAddedStickerId == item.id,
+                                onSelect: () => onSelectSticker(item.id),
+                                onGrabStart: onStickerGrabStart,
+                                onGrabEnd: (globalPosition) =>
+                                    onStickerGrabEnd(item.id, globalPosition),
+                                onFlipHorizontal: () =>
+                                    onFlipSticker(item.id, horizontal: true),
+                                onFlipVertical: () =>
+                                    onFlipSticker(item.id, horizontal: false),
+                                onChanged: onUpdateSticker,
+                              )
+                            else if (item is TextItem)
+                              _TextNode(
+                                key: ValueKey(item.id),
+                                item: item,
+                                canvasScale: canvasScale,
+                                canvasOffset: canvasOrigin,
+                                selected: selectedItemId == item.id,
+                                onSelect: () => onSelect(item.id),
+                                onGrabStart: onStickerGrabStart,
+                                onGrabEnd: (globalPosition) =>
+                                    onTextGrabEnd(item.id, globalPosition),
+                                onChanged: onUpdateText,
+                              ),
+                        ],
                       ),
                     ),
                   ),
@@ -1270,6 +1330,7 @@ class _StickerNode extends StatefulWidget {
     required this.item,
     required this.assetPath,
     required this.canvasScale,
+    required this.canvasOffset,
     required this.viewportScale,
     required this.selected,
     required this.animateIn,
@@ -1285,6 +1346,7 @@ class _StickerNode extends StatefulWidget {
   final StickerItem item;
   final String assetPath;
   final double canvasScale;
+  final Offset canvasOffset;
   final double Function() viewportScale;
   final bool selected;
   final bool animateIn;
@@ -1402,8 +1464,16 @@ class _StickerNodeState extends State<_StickerNode> {
     final handleHitSize = handleSize;
     final controlPad = widget.selected ? handleHitSize : 0.0;
     final selectionWidth = (shortSide * 0.012).clamp(0.8, 2.0);
-    final left = widget.item.x * widget.canvasScale - width / 2 - controlPad;
-    final top = widget.item.y * widget.canvasScale - height / 2 - controlPad;
+    final left =
+        widget.canvasOffset.dx +
+        widget.item.x * widget.canvasScale -
+        width / 2 -
+        controlPad;
+    final top =
+        widget.canvasOffset.dy +
+        widget.item.y * widget.canvasScale -
+        height / 2 -
+        controlPad;
 
     return Positioned(
       left: left,
@@ -1833,6 +1903,7 @@ class _TextNode extends StatefulWidget {
   const _TextNode({
     required this.item,
     required this.canvasScale,
+    required this.canvasOffset,
     required this.selected,
     required this.onSelect,
     required this.onGrabStart,
@@ -1843,6 +1914,7 @@ class _TextNode extends StatefulWidget {
 
   final TextItem item;
   final double canvasScale;
+  final Offset canvasOffset;
   final bool selected;
   final VoidCallback onSelect;
   final VoidCallback onGrabStart;
@@ -1892,12 +1964,20 @@ class _TextNodeState extends State<_TextNode> {
   Widget build(BuildContext context) {
     final width = 360 * widget.canvasScale * widget.item.scale;
     final height = 150 * widget.canvasScale * widget.item.scale;
-    final handleSize = (height * 0.32).clamp(24.0, 58.0);
-    final hitSize = math.max(104.0, handleSize * 2.6);
-    final controlPad = widget.selected ? hitSize / 2 + 8 : 0.0;
+    final handleSize = (height * 0.36).clamp(36.0, 64.0);
+    final hitSize = handleSize;
+    final controlPad = widget.selected ? hitSize : 0.0;
     return Positioned(
-      left: widget.item.x * widget.canvasScale - width / 2 - controlPad,
-      top: widget.item.y * widget.canvasScale - height / 2 - controlPad,
+      left:
+          widget.canvasOffset.dx +
+          widget.item.x * widget.canvasScale -
+          width / 2 -
+          controlPad,
+      top:
+          widget.canvasOffset.dy +
+          widget.item.y * widget.canvasScale -
+          height / 2 -
+          controlPad,
       width: width + controlPad * 2,
       height: height + controlPad * 2,
       child: AnimatedScale(
@@ -1915,7 +1995,7 @@ class _TextNodeState extends State<_TextNode> {
                 width: width,
                 height: height,
                 child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
+                  behavior: HitTestBehavior.opaque,
                   onTap: widget.onSelect,
                   onPanStart: (details) {
                     StickerlySfx.play(StickerlyAssets.soundPop);
@@ -1974,6 +2054,44 @@ class _TextNodeState extends State<_TextNode> {
                         ),
                       ),
                     ),
+                  ),
+                ),
+              if (widget.selected)
+                Positioned(
+                  left: controlPad,
+                  top: controlPad,
+                  width: width,
+                  height: height,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: widget.onSelect,
+                    onPanStart: (details) {
+                      StickerlySfx.play(StickerlyAssets.soundPop);
+                      setState(() => _motionScale = 1.14);
+                      widget.onSelect();
+                      widget.onGrabStart();
+                      _gestureStart = widget.item;
+                      _latest = widget.item;
+                      _focalStart = details.globalPosition;
+                      _latestGlobalPosition = details.globalPosition;
+                    },
+                    onPanUpdate: (details) {
+                      _latestGlobalPosition = details.globalPosition;
+                      final delta =
+                          (details.globalPosition - _focalStart) /
+                          widget.canvasScale;
+                      _latest = _gestureStart.copyWith(
+                        x: _gestureStart.x + delta.dx,
+                        y: _gestureStart.y + delta.dy,
+                      );
+                      widget.onChanged(_latest, commit: false);
+                    },
+                    onPanEnd: (_) {
+                      StickerlySfx.play(StickerlyAssets.soundPunch);
+                      setState(() => _motionScale = 1);
+                      widget.onChanged(_latest, commit: true);
+                      widget.onGrabEnd(_latestGlobalPosition);
+                    },
                   ),
                 ),
               if (widget.selected)
@@ -2749,7 +2867,8 @@ class _StickerBrowser extends StatelessWidget {
                 builder: (context, constraints) => GridView.builder(
                   controller: controller,
                   padding: const EdgeInsets.fromLTRB(4, 2, 12, 14),
-                  gridDelegate: const _FixedTrayGridDelegate(
+                  gridDelegate: _FixedTrayGridDelegate(
+                    forceCrossAxisCount: horizontal ? 4 : null,
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
                   ),
@@ -2788,7 +2907,8 @@ class _StickerBrowser extends StatelessWidget {
                     builder: (context, constraints) => GridView.builder(
                       controller: controller,
                       padding: const EdgeInsets.fromLTRB(8, 4, 12, 28),
-                      gridDelegate: const _FixedTrayGridDelegate(
+                      gridDelegate: _FixedTrayGridDelegate(
+                        forceCrossAxisCount: horizontal ? 4 : null,
                         crossAxisSpacing: 8,
                         mainAxisSpacing: 8,
                       ),
@@ -2935,26 +3055,35 @@ class _FixedTrayGridDelegate extends SliverGridDelegate {
   const _FixedTrayGridDelegate({
     this.crossAxisSpacing = 8,
     this.mainAxisSpacing = 8,
+    this.forceCrossAxisCount,
   });
 
   static const itemExtent = 96.0;
   final double crossAxisSpacing;
   final double mainAxisSpacing;
+  final int? forceCrossAxisCount;
 
   @override
   SliverGridLayout getLayout(SliverConstraints constraints) {
-    final count = math.max(
-      1,
-      ((constraints.crossAxisExtent + crossAxisSpacing) /
-              (itemExtent + crossAxisSpacing))
-          .floor(),
-    );
+    final count =
+        forceCrossAxisCount ??
+        math.max(
+          1,
+          ((constraints.crossAxisExtent + crossAxisSpacing) /
+                  (itemExtent + crossAxisSpacing))
+              .floor(),
+        );
+    final childCrossAxisExtent =
+        (constraints.crossAxisExtent - crossAxisSpacing * (count - 1)) / count;
+    final childMainAxisExtent = forceCrossAxisCount == null
+        ? itemExtent
+        : childCrossAxisExtent;
     return SliverGridRegularTileLayout(
       crossAxisCount: count,
-      mainAxisStride: itemExtent + mainAxisSpacing,
-      crossAxisStride: itemExtent + crossAxisSpacing,
-      childMainAxisExtent: itemExtent,
-      childCrossAxisExtent: itemExtent,
+      mainAxisStride: childMainAxisExtent + mainAxisSpacing,
+      crossAxisStride: childCrossAxisExtent + crossAxisSpacing,
+      childMainAxisExtent: childMainAxisExtent,
+      childCrossAxisExtent: childCrossAxisExtent,
       reverseCrossAxis: axisDirectionIsReversed(constraints.crossAxisDirection),
     );
   }
@@ -2962,7 +3091,8 @@ class _FixedTrayGridDelegate extends SliverGridDelegate {
   @override
   bool shouldRelayout(covariant _FixedTrayGridDelegate oldDelegate) {
     return oldDelegate.crossAxisSpacing != crossAxisSpacing ||
-        oldDelegate.mainAxisSpacing != mainAxisSpacing;
+        oldDelegate.mainAxisSpacing != mainAxisSpacing ||
+        oldDelegate.forceCrossAxisCount != forceCrossAxisCount;
   }
 }
 
@@ -3185,7 +3315,8 @@ class _TextStyleList extends StatelessWidget {
         builder: (context, constraints) => GridView.builder(
           controller: controller,
           padding: const EdgeInsets.fromLTRB(8, 4, 12, 28),
-          gridDelegate: const _FixedTrayGridDelegate(
+          gridDelegate: _FixedTrayGridDelegate(
+            forceCrossAxisCount: horizontal ? 4 : null,
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
           ),
@@ -3323,7 +3454,7 @@ class _TrayHeaderButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(13),
           ),
         ),
-        icon: Image.asset(StickerlyAssets.back, width: 20, height: 20),
+        icon: const BackChevronGraphic(width: 20, height: 20),
         label: Text(
           label,
           maxLines: 1,
@@ -3416,7 +3547,8 @@ class _BackgroundList extends StatelessWidget {
                     builder: (context, constraints) => GridView.builder(
                       controller: controller,
                       padding: const EdgeInsets.fromLTRB(8, 4, 12, 28),
-                      gridDelegate: const _FixedTrayGridDelegate(
+                      gridDelegate: _FixedTrayGridDelegate(
+                        forceCrossAxisCount: horizontal ? 4 : null,
                         crossAxisSpacing: 8,
                         mainAxisSpacing: 8,
                       ),

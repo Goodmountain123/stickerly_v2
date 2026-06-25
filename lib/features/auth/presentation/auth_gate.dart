@@ -41,7 +41,6 @@ class _AuthGateState extends State<AuthGate> {
     try {
       account = await widget.accountRepository?.current();
     } catch (_) {
-      await widget.accountRepository?.signOut();
       account = null;
     }
     if (!mounted) return;
@@ -126,6 +125,13 @@ class _AuthGateState extends State<AuthGate> {
     return account;
   }
 
+  Future<AccountProfile> _refreshAccount() async {
+    final account = await widget.accountRepository!.current();
+    if (account == null) throw StateError('Not signed in.');
+    if (mounted) setState(() => _account = account);
+    return account;
+  }
+
   void _showMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -159,6 +165,7 @@ class _AuthGateState extends State<AuthGate> {
       account: account,
       onAccountUpdated: _updateDisplayName,
       onAvatarUpdated: _updateAvatarImage,
+      onAccountRefresh: _refreshAccount,
       onLogout: _signOut,
     );
   }

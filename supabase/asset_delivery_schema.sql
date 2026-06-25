@@ -193,12 +193,6 @@ begin
   )
   on conflict (user_id) do update set
     email = excluded.email,
-    display_name = excluded.display_name,
-    points = case
-      when target_email = 'testaccount1@stickerly.app' then 1000000
-      when target_email = 'testaccount2@stickerly.app' then 0
-      else account_profiles.points
-    end,
     updated_at = now();
 
   insert into public.user_pack_entitlements (
@@ -576,6 +570,20 @@ begin
   if profile.user_id is null then
     raise exception 'Profile not found';
   end if;
+  if not exists (
+    select 1
+    from public.product_packs
+    where product_packs.product_id = target_product_id
+      and not exists (
+        select 1
+        from public.user_pack_entitlements
+        where user_pack_entitlements.user_id = buyer_id
+          and user_pack_entitlements.pack_id = product_packs.pack_id
+          and user_pack_entitlements.revoked_at is null
+      )
+  ) then
+    raise exception 'ALREADY_OWNED';
+  end if;
   if profile.points < product_price then
     raise exception 'INSUFFICIENT_POINTS';
   end if;
@@ -603,6 +611,58 @@ begin
   on conflict (provider, provider_transaction_id) do nothing;
 
   perform public.grant_product_assets(buyer_id, target_product_id);
+  return profile;
+end;
+$$;
+
+create or replace function public.test_charge_points(
+  points_to_add integer
+)
+returns public.account_profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_user_id uuid := auth.uid();
+  profile public.account_profiles;
+begin
+  if target_user_id is null then
+    raise exception 'Not signed in';
+  end if;
+  if points_to_add is null or points_to_add <= 0 then
+    raise exception 'Invalid points';
+  end if;
+
+  update public.account_profiles
+  set points = points + points_to_add,
+      updated_at = now()
+  where user_id = target_user_id
+  returning * into profile;
+
+  if profile.user_id is null then
+    raise exception 'Profile not found';
+  end if;
+
+  insert into public.point_purchases (
+    user_id,
+    points,
+    price_amount,
+    currency,
+    provider,
+    provider_transaction_id,
+    status
+  )
+  values (
+    target_user_id,
+    points_to_add,
+    0,
+    'TEST',
+    'test',
+    'test-' || gen_random_uuid()::text,
+    'completed'
+  );
+
   return profile;
 end;
 $$;
@@ -788,6 +848,10 @@ grant execute on function public.admin_grant_product(uuid, uuid)
 revoke all on function public.purchase_product_with_points(uuid)
   from public, anon, authenticated;
 grant execute on function public.purchase_product_with_points(uuid)
+  to authenticated;
+revoke all on function public.test_charge_points(integer)
+  from public, anon, authenticated;
+grant execute on function public.test_charge_points(integer)
   to authenticated;
 revoke all on function public.sync_account_metadata(uuid)
   from public, anon, authenticated;

@@ -1,20 +1,29 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stickerly_v2/features/auth/domain/account_profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseAccountRepository implements AccountRepository {
-  SupabaseAccountRepository(this._client);
+  SupabaseAccountRepository(this._client, {SharedPreferencesAsync? preferences})
+    : _preferences = preferences ?? SharedPreferencesAsync();
 
   static const _password = 'StickerlyTest!2026';
+  static const _cachedAccountKey = 'stickerly.cached_account';
 
   final SupabaseClient _client;
+  final SharedPreferencesAsync _preferences;
 
   @override
   Future<AccountProfile?> current() async {
     final user = _client.auth.currentUser;
-    if (user == null) return null;
-    return _load(user);
+    if (user == null) return _readCached();
+    try {
+      return await _load(user);
+    } catch (_) {
+      return _readCached();
+    }
   }
 
   @override
@@ -32,7 +41,10 @@ class SupabaseAccountRepository implements AccountRepository {
   }
 
   @override
-  Future<void> signOut() => _client.auth.signOut();
+  Future<void> signOut() async {
+    await _client.auth.signOut();
+    await _preferences.remove(_cachedAccountKey);
+  }
 
   @override
   Future<AccountProfile> updateDisplayName(String displayName) async {
@@ -73,7 +85,7 @@ class SupabaseAccountRepository implements AccountRepository {
   Future<AccountProfile> _load(User user) async {
     final profile = await _client
         .from('account_profiles')
-        .select('display_name,points,avatar_storage_path')
+        .select('email,display_name,points,avatar_storage_path')
         .eq('user_id', user.id)
         .single();
     final avatarPath = profile['avatar_storage_path'] as String?;
@@ -82,15 +94,51 @@ class SupabaseAccountRepository implements AccountRepository {
         .select('pack_id')
         .eq('user_id', user.id)
         .isFilter('revoked_at', null);
-    return AccountProfile(
+    final account = AccountProfile(
       userId: user.id,
-      email: user.email ?? '',
+      email: (profile['email'] as String?) ?? user.email ?? '',
       displayName: profile['display_name'] as String,
       points: (profile['points'] as num).toInt(),
       packIds: entitlements.map((row) => row['pack_id'] as String).toSet(),
       avatarUrl: avatarPath == null || avatarPath.isEmpty
           ? null
           : _client.storage.from('profile-images').getPublicUrl(avatarPath),
+    );
+    await _writeCached(account);
+    return account;
+  }
+
+  Future<AccountProfile?> _readCached() async {
+    final raw = await _preferences.getString(_cachedAccountKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      return AccountProfile(
+        userId: json['userId'] as String,
+        email: json['email'] as String? ?? '',
+        displayName: json['displayName'] as String? ?? '',
+        points: json['points'] as int? ?? 0,
+        packIds: Set<String>.from(
+          json['packIds'] as List<dynamic>? ?? const [],
+        ),
+        avatarUrl: json['avatarUrl'] as String?,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _writeCached(AccountProfile account) {
+    return _preferences.setString(
+      _cachedAccountKey,
+      jsonEncode({
+        'userId': account.userId,
+        'email': account.email,
+        'displayName': account.displayName,
+        'points': account.points,
+        'packIds': account.packIds.toList()..sort(),
+        'avatarUrl': account.avatarUrl,
+      }),
     );
   }
 }

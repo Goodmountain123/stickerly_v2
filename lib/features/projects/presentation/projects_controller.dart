@@ -37,6 +37,50 @@ class ProjectsController extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshProjects({bool showLoading = false}) async {
+    if (showLoading) {
+      isLoading = true;
+      error = null;
+      notifyListeners();
+    }
+    try {
+      projects = await _repository.list();
+      error = null;
+    } catch (exception) {
+      error = exception;
+    } finally {
+      if (showLoading) isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> refreshCatalog({bool showLoading = false}) async {
+    if (showLoading) {
+      isLoading = true;
+      error = null;
+      notifyListeners();
+    }
+    try {
+      catalog = await _assetCatalogLoader.load();
+      error = null;
+    } catch (exception) {
+      error = exception;
+    } finally {
+      if (showLoading) isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void upsertProject(StickerProject project) {
+    final next = [
+      project,
+      for (final item in projects)
+        if (item.id != project.id) item,
+    ]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    projects = next;
+    notifyListeners();
+  }
+
   Future<StickerProject> createProject({
     String? title,
     required CanvasPreset preset,

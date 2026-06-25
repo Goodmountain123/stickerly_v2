@@ -30,6 +30,7 @@ class AssetFileImage extends StatelessWidget {
         width: width,
         height: height,
         filterQuality: filterQuality,
+        frameBuilder: _keepPlaceholderUntilReady,
       );
     }
     if (path.startsWith('http://') || path.startsWith('https://')) {
@@ -39,6 +40,7 @@ class AssetFileImage extends StatelessWidget {
         width: width,
         height: height,
         filterQuality: filterQuality,
+        frameBuilder: _keepPlaceholderUntilReady,
         errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFFF2EDF4)),
       );
     }
@@ -48,7 +50,18 @@ class AssetFileImage extends StatelessWidget {
       width: width,
       height: height,
       filterQuality: filterQuality,
+      frameBuilder: _keepPlaceholderUntilReady,
       errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFFF2EDF4)),
     );
+  }
+
+  Widget _keepPlaceholderUntilReady(
+    BuildContext context,
+    Widget child,
+    int? frame,
+    bool wasSynchronouslyLoaded,
+  ) {
+    if (wasSynchronouslyLoaded || frame != null) return child;
+    return const ColoredBox(color: Color(0xFFF2EDF4));
   }
 }

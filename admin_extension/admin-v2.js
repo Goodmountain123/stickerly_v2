@@ -69,6 +69,16 @@ function injectAdminUi() {
         <button id="new-product" class="button">+ 상품 추가</button>
         <button id="products-refresh" class="button secondary">새로고침</button>
       </div>
+      <div class="delivery-card store-banner-admin">
+        <h3>상점 배너 이미지</h3>
+        <p class="delivery-note">앱 상점 상단에 표시될 배너입니다. 비워두면 앱 기본 배너가 보여요.</p>
+        <div class="store-banner-preview" id="store-banner-preview"><span>기본 배너 사용 중</span></div>
+        <label class="product-image-field">
+          <span>배너 이미지 교체</span>
+          <input id="store-banner-file" type="file" accept="image/*">
+        </label>
+        <button id="save-store-banner" class="button">배너 저장</button>
+      </div>
       <div id="product-list" class="delivery-grid"></div>
     </section>
     <section id="entitlements-panel" class="delivery-panel" hidden>
@@ -113,6 +123,7 @@ function injectAdminUi() {
   $("#publish-release").onclick = publishRelease;
   $("#products-refresh").onclick = loadProducts;
   $("#new-product").onclick = () => editProduct();
+  $("#save-store-banner").onclick = saveStoreBanner;
   $("#grant-entitlement").onclick = grantEntitlement;
   $("#users-refresh").onclick = loadUsers;
   $("#user-search").oninput = renderUsers;
@@ -191,8 +202,46 @@ async function fetchPacks() {
   return packRows;
 }
 
+async function loadStoreBanner() {
+  const preview = $("#store-banner-preview");
+  if (!preview) return;
+  preview.innerHTML = "<span>기본 배너 사용 중</span>";
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "store_banner_storage_path")
+    .maybeSingle();
+  if (error) return;
+  const path = data?.value;
+  if (!path) return;
+  preview.innerHTML = `<img alt="상점 배너">`;
+  setDeliveryImage(preview.querySelector("img"), path);
+}
+
+async function saveStoreBanner() {
+  const input = $("#store-banner-file");
+  const file = input?.files?.[0];
+  if (!file) return toast("배너 이미지를 선택하세요.");
+  const safeName = file.name.replace(/[^\w.-]+/g, "-");
+  const imagePath = `banners/store-${Date.now()}-${safeName}`;
+  const upload = await supabase.storage
+    .from("assets")
+    .upload(imagePath, file, { contentType: file.type || "image/png", upsert: true });
+  if (upload.error) return toast("배너 이미지를 업로드하지 못했어요.");
+  const { error } = await supabase.from("app_settings").upsert({
+    key: "store_banner_storage_path",
+    value: imagePath,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) return toast("배너 설정을 저장하지 못했어요.");
+  input.value = "";
+  await loadStoreBanner();
+  toast("상점 배너를 저장했어요.");
+}
+
 async function loadProducts() {
   try {
+    await loadStoreBanner();
     await fetchPacks();
     const { data, error } = await supabase
       .from("products")

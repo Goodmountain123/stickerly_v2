@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 abstract final class StickerlyTextStyles {
   static const wordmark = TextStyle(
     fontSize: 30,
-    fontWeight: FontWeight.w700,
+    fontWeight: FontWeight.w800,
     height: 1,
   );
 
