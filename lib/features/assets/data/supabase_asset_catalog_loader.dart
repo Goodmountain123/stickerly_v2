@@ -46,8 +46,10 @@ class SupabaseAssetCatalogLoader implements DownloadableAssetCatalogLoader {
       final remoteVersion = await _loadRemoteVersion();
       final cachedVersion = await _preferences.getInt(_versionKey);
       final cachedCatalog = await _readCache();
+      // 버전이 같고 로그인 상태인 경우에만 캐시 사용
+      // (익명 상태에서는 항상 새로 불러와서 어드민 공개 설정이 즉시 반영되게 함)
       final shouldUseCache =
-          _client.auth.currentUser == null &&
+          _client.auth.currentUser != null &&
           cachedCatalog != null &&
           cachedVersion == remoteVersion;
       if (shouldUseCache) {

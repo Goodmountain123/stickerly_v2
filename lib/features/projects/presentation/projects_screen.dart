@@ -260,53 +260,54 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           final scale = constraints.maxWidth / 390;
           return CustomPaint(
             painter: const _HomeDotPainter(),
-            child: Stack(
+            child: Column(
               children: [
-                Positioned(
-                  left: 16 * scale,
-                  top: 120 * scale,
-                  width: 357 * scale,
-                  height: 167 * scale,
-                  child: _HomeMenuCard(
-                    title: '스티커북',
-                    subtitle: '스티커북 꾸미기',
-                    color: const Color(0xFFF6D4CF),
-                    borderColor: const Color(0xFFC47165),
-                    onTap: () => _setHomeTab(_HomeTab.stickerBook),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: 16 * scale,
+                        top: 120 * scale,
+                        width: 357 * scale,
+                        height: 167 * scale,
+                        child: _HomeMenuCard(
+                          title: '스티커북',
+                          subtitle: '스티커북 꾸미기',
+                          color: const Color(0xFFF6D4CF),
+                          borderColor: const Color(0xFFC47165),
+                          onTap: () => _setHomeTab(_HomeTab.stickerBook),
+                        ),
+                      ),
+                      Positioned(
+                        left: 16 * scale,
+                        top: 304 * scale,
+                        width: 172 * scale,
+                        height: 167 * scale,
+                        child: _HomeMenuCard(
+                          title: '내 스티커',
+                          subtitle: '내가 가진 스티커팩',
+                          color: const Color(0xFFFFEDD8),
+                          borderColor: const Color(0xFFCD9351),
+                          onTap: () => _setHomeTab(_HomeTab.drawer),
+                        ),
+                      ),
+                      Positioned(
+                        left: 201 * scale,
+                        top: 304 * scale,
+                        width: 172 * scale,
+                        height: 167 * scale,
+                        child: _HomeMenuCard(
+                          title: '상점',
+                          subtitle: '새 팩 둘러보기',
+                          color: const Color(0xFFEEDFFF),
+                          borderColor: const Color(0xFF8E7AA3),
+                          onTap: () => _openStore(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Positioned(
-                  left: 16 * scale,
-                  top: 304 * scale,
-                  width: 172 * scale,
-                  height: 167 * scale,
-                  child: _HomeMenuCard(
-                    title: '내 스티커',
-                    subtitle: '내가 가진 스티커팩',
-                    color: const Color(0xFFFFEDD8),
-                    borderColor: const Color(0xFFCD9351),
-                    onTap: () => _setHomeTab(_HomeTab.drawer),
-                  ),
-                ),
-                Positioned(
-                  left: 201 * scale,
-                  top: 304 * scale,
-                  width: 172 * scale,
-                  height: 167 * scale,
-                  child: _HomeMenuCard(
-                    title: '상점',
-                    subtitle: '새 팩 둘러보기',
-                    color: const Color(0xFFEEDFFF),
-                    borderColor: const Color(0xFF8E7AA3),
-                    onTap: () => _openStore(),
-                  ),
-                ),
-                const Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _HomeAdPlaceholder(),
-                ),
+                const _HomeAdPlaceholder(),
               ],
             ),
           );
@@ -338,21 +339,13 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           final gap = (constraints.maxWidth * 0.017).clamp(10.0, 14.0);
           final sidePadding = (constraints.maxWidth * 0.012).clamp(6.0, 10.0);
           final topPadding = (constraints.maxHeight * 0.035).clamp(8.0, 12.0);
+          final bottomPadding = topPadding;
           final availableWidth = constraints.maxWidth - sidePadding * 2 - gap;
           final leftWidth = (availableWidth * 0.53).clamp(
             260.0,
             availableWidth - 230.0,
           );
           final rightWidth = availableWidth - leftWidth - gap;
-          final smallCardWidth = (rightWidth - gap) / 2;
-          final smallCardHeight = (smallCardWidth * 152 / 157).clamp(
-            104.0,
-            constraints.maxHeight * 0.48,
-          );
-          final stickerBookHeight = (leftWidth * 262 / 433).clamp(
-            160.0,
-            constraints.maxHeight - topPadding * 2,
-          );
           return CustomPaint(
             painter: const _HomeDotPainter(),
             child: Padding(
@@ -360,24 +353,21 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 sidePadding,
                 topPadding,
                 sidePadding,
-                0,
+                bottomPadding,
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(
-                    width: leftWidth,
-                    height: stickerBookHeight,
-                    child: cards[0],
-                  ),
+                  SizedBox(width: leftWidth, child: cards[0]),
                   SizedBox(width: gap),
                   SizedBox(
                     width: rightWidth,
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        SizedBox(
-                          height: smallCardHeight,
+                        Expanded(
                           child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Expanded(child: cards[1]),
                               SizedBox(width: gap),
@@ -386,7 +376,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           ),
                         ),
                         SizedBox(height: gap),
-                        const Expanded(child: _HomeAdPlaceholder()),
+                        const _HomeAdPlaceholder(banner: true),
                       ],
                     ),
                   ),
@@ -450,7 +440,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final landscape = constraints.maxWidth > constraints.maxHeight;
-        final pageSize = landscape ? 4 : 6;
+        // 태블릿: 짧은 변이 600 초과
+        final shortSide =
+            landscape ? constraints.maxHeight : constraints.maxWidth;
+        final isTablet = shortSide > 600;
+        // 태블릿 가로: 8장, 폰 가로: 4장, 세로: 6장
+        final pageSize = landscape ? (isTablet ? 8 : 4) : 6;
         final itemCount = _controller.projects.length + 1;
         final pageCount = ((itemCount / pageSize).ceil()).clamp(1, 9999);
         final page = _stickerBookPage.clamp(0, pageCount - 1);
@@ -496,8 +491,45 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     final end = (start + pageSize).clamp(0, itemCount);
                     final pageItemCount = end - start;
 
+                    if (landscape && isTablet) {
+                      // 태블릿 가로: 4열 2행 그리드 (8장)
+                      // 내부 LayoutBuilder로 실제 높이(PageDots 제외) 사용
+                      return LayoutBuilder(
+                        builder: (context, innerConstraints) {
+                          const hPad = 16.0;
+                          const vPad = 14.0;
+                          const spacing = 12.0;
+                          final cardW = (innerConstraints.maxWidth -
+                                  hPad * 2 -
+                                  spacing * 3) /
+                              4;
+                          final cardH = (innerConstraints.maxHeight -
+                                  vPad -
+                                  8.0 -
+                                  spacing) /
+                              2;
+                          return GridView.builder(
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding:
+                                const EdgeInsets.fromLTRB(hPad, vPad, hPad, 8),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4,
+                              crossAxisSpacing: spacing,
+                              mainAxisSpacing: spacing,
+                              childAspectRatio:
+                                  (cardW / cardH).clamp(0.5, 2.0),
+                            ),
+                            itemCount: pageItemCount,
+                            itemBuilder: (context, index) =>
+                                cardFor(start + index),
+                          );
+                        },
+                      );
+                    }
+
                     if (landscape) {
-                      // 가로: 4개를 한 줄 Row로 — 전체 높이 채움
+                      // 폰 가로: 4개를 한 줄 Row로 — 전체 높이 채움
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
                         child: Row(
@@ -517,10 +549,50 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     }
 
                     // 세로: 2×3 그리드
+                    // 태블릿: 동적 비율로 6장이 화면에 딱 맞게
+                    // 폰: 원래 고정 비율 유지
+                    if (isTablet) {
+                      // 내부 LayoutBuilder로 PageView 아이템의 실제 높이를 직접 받음
+                      // → _PageDots 높이 추정 불필요
+                      return LayoutBuilder(
+                        builder: (context, innerConstraints) {
+                          const hPad = 13.0;
+                          const vPad = 17.0;
+                          const spacing = 11.0;
+                          final cardW = (innerConstraints.maxWidth -
+                                  hPad * 2 -
+                                  spacing) /
+                              2;
+                          final cardH = (innerConstraints.maxHeight -
+                                  vPad -
+                                  8.0 -
+                                  spacing * 2) /
+                              3;
+                          return GridView.builder(
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding:
+                                const EdgeInsets.fromLTRB(hPad, vPad, hPad, 8),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: spacing,
+                              mainAxisSpacing: spacing,
+                              childAspectRatio:
+                                  (cardW / cardH).clamp(0.5, 1.5),
+                            ),
+                            itemCount: pageItemCount,
+                            itemBuilder: (context, index) =>
+                                cardFor(start + index),
+                          );
+                        },
+                      );
+                    }
+                    // 폰 세로: 원래 고정 비율
                     return GridView.builder(
                       physics: const NeverScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(13, 17, 13, 8),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         crossAxisSpacing: 11,
                         mainAxisSpacing: 11,
@@ -658,63 +730,107 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             ),
     );
     if (landscape) {
-      return CustomPaint(
-        painter: const _HomeDotPainter(),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 315,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 24, 20, 0),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 38,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _DrawerSearchField(
-                              onChanged: (value) => setState(() {
-                                _packQuery = value;
-                                _drawerPage = 0;
-                              }),
+      return LayoutBuilder(
+        builder: (context, lc) {
+          final isTablet = MediaQuery.sizeOf(context).shortestSide > 600;
+
+          // ── 공통 좌측 패널 빌더 ────────────────────────────────────────
+          Widget buildLeft(double width, {bool expanded = false}) => SizedBox(
+                width: width,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        height: 44,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _DrawerSearchField(
+                                iconSize: expanded ? 26 : 21,
+                                onChanged: (value) => setState(() {
+                                  _packQuery = value;
+                                  _drawerPage = 0;
+                                }),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 82,
-                            child: _DrawerSortButton(
-                              sort: _drawerSort,
-                              onChanged: (value) => setState(() {
-                                _drawerSort = value;
-                                _drawerPage = 0;
-                              }),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 82,
+                              height: 44,
+                              child: _DrawerSortButton(
+                                sort: _drawerSort,
+                                onChanged: (value) => setState(() {
+                                  _drawerSort = value;
+                                  _drawerPage = 0;
+                                }),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 22),
-                    SizedBox(
-                      height: 105,
-                      child: _DrawerStoreButton(onTap: _openStore),
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+                      if (expanded)
+                        Expanded(child: _DrawerStoreButton(onTap: _openStore))
+                      else ...[
+                        SizedBox(
+                          height: 105,
+                          child: _DrawerStoreButton(onTap: _openStore),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
+              );
+
+          // ── 태블릿 가로: 3×3 페이지 슬라이드 ─────────────────────────
+          if (isTablet) {
+            final leftWidth = (lc.maxWidth * 0.38).clamp(280.0, 420.0);
+            return CustomPaint(
+              painter: const _HomeDotPainter(),
+              child: Row(
+                children: [
+                  buildLeft(leftWidth, expanded: true),
+                  Container(
+                    width: 2,
+                    margin: const EdgeInsets.fromLTRB(0, 16, 26, 18),
+                    color: const Color(0xFFE8DDD4),
+                  ),
+                  Expanded(
+                    child: packs.isEmpty
+                        ? const Center(child: Text('찾는 팩이 없어요'))
+                        : _buildDrawerPackPages(
+                            packs,
+                            overridePageSize: 9,
+                            overrideCrossAxisCount: 3,
+                          ),
+                  ),
+                ],
               ),
+            );
+          }
+
+          // ── 폰 가로: 기존 레이아웃 ────────────────────────────────────
+          return CustomPaint(
+            painter: const _HomeDotPainter(),
+            child: Row(
+              children: [
+                buildLeft(315),
+                Container(
+                  width: 2,
+                  margin: const EdgeInsets.fromLTRB(0, 16, 26, 18),
+                  color: const Color(0xFFE8DDD4),
+                ),
+                Expanded(
+                  child: packs.isEmpty
+                      ? const Center(child: Text('찾는 팩이 없어요'))
+                      : _buildDrawerPackPages(packs),
+                ),
+              ],
             ),
-            Container(
-              width: 2,
-              margin: const EdgeInsets.fromLTRB(0, 16, 26, 18),
-              color: const Color(0xFFE8DDD4),
-            ),
-            Expanded(
-              child: packs.isEmpty
-                  ? const Center(child: Text('찾는 팩이 없어요'))
-                  : _buildDrawerPackPages(packs),
-            ),
-          ],
-        ),
+          );
+        },
       );
     }
     if (landscape) {
@@ -762,10 +878,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             ),
             Positioned(
               left: 9 * scale,
-              top: 180 * scale,
+              top: 167 * scale,
               width: 277 * scale,
-              height: 38 * scale,
+              height: 44 * scale,
               child: _DrawerSearchField(
+                iconSize: 42,
                 onChanged: (value) => setState(() {
                   _packQuery = value;
                   _drawerPage = 0;
@@ -774,9 +891,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             ),
             Positioned(
               left: 294 * scale,
-              top: 180 * scale,
+              top: 167 * scale,
               width: 82 * scale,
-              height: 38 * scale,
+              height: 44 * scale,
               child: _DrawerSortButton(
                 sort: _drawerSort,
                 onChanged: (value) => setState(() {
@@ -788,7 +905,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             Positioned(
               left: 0,
               right: 0,
-              top: 255 * scale,
+              top: 222 * scale,
               bottom: 0,
               child: packs.isEmpty
                   ? const Center(child: Text('찾는 팩이 없어요'))
@@ -800,13 +917,17 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     );
   }
 
-  Widget _buildDrawerPackPages(List<StickerPack> packs) {
+  Widget _buildDrawerPackPages(
+    List<StickerPack> packs, {
+    int? overridePageSize,
+    int? overrideCrossAxisCount,
+  }) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final landscape = constraints.maxWidth > constraints.maxHeight;
         const spacing = 10.0;
-        final pageSize = landscape ? 8 : 6;
-        final crossAxisCount = landscape ? 4 : 3;
+        final pageSize = overridePageSize ?? (landscape ? 8 : 6);
+        final crossAxisCount = overrideCrossAxisCount ?? (landscape ? 4 : 3);
         const horizontalPadding = 14.0;
         const verticalPadding = 7.0;
         final cardWidth =
@@ -1200,7 +1321,7 @@ class _HomeHeader extends StatelessWidget {
         ),
       );
     }
-    if (showWelcome && !landscape && mobile) {
+    if (showWelcome && !landscape) {
       return Column(
         children: [
           SizedBox(
@@ -1269,7 +1390,7 @@ class _HomeHeader extends StatelessWidget {
         ],
       );
     }
-    if (showBack && !landscape && mobile) {
+    if (showBack && !landscape) {
       return SizedBox(
         height: 60 + topPad,
         child: DecoratedBox(
@@ -1932,17 +2053,34 @@ class _StoreScreenState extends State<_StoreScreen> {
   var _products = <_StoreProduct>[];
   late int _points = widget.account?.points ?? 0;
   late Set<String> _ownedPackIds = {...?widget.account?.packIds};
+  var _storeLandscapePage = 0;
+  late final _storeLandscapePageController = PageController();
+  var _storePortraitPage = 0;
+  late final _storePortraitPageController = PageController();
 
   @override
   void initState() {
     super.initState();
     unawaited(_loadProducts());
-    _searchController.addListener(() => setState(() {}));
+    _searchController.addListener(() {
+      setState(() {
+        _storeLandscapePage = 0;
+        _storePortraitPage = 0;
+      });
+      if (_storeLandscapePageController.hasClients) {
+        _storeLandscapePageController.jumpToPage(0);
+      }
+      if (_storePortraitPageController.hasClients) {
+        _storePortraitPageController.jumpToPage(0);
+      }
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _storeLandscapePageController.dispose();
+    _storePortraitPageController.dispose();
     super.dispose();
   }
 
@@ -2203,180 +2341,363 @@ class _StoreScreenState extends State<_StoreScreen> {
               ),
               if (landscape)
                 Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 좌측 패널: 검색 + 정렬 + 배너
-                      SizedBox(
-                        width: 290,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Row(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isTablet =
+                          MediaQuery.sizeOf(context).shortestSide > 600;
+
+                      // ── 좌측 패널 공통 빌더 ──────────────────────────────
+                      Widget buildLeft(double width, {bool tall = false}) =>
+                          SizedBox(
+                            width: width,
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Expanded(
-                                    child: DecoratedBox(
-                                      decoration: const BoxDecoration(
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Color.fromRGBO(0, 0, 0, 0.06),
-                                            blurRadius: 6,
-                                            offset: Offset(0, 2),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: DecoratedBox(
+                                          decoration: const BoxDecoration(
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Color.fromRGBO(
+                                                    0, 0, 0, 0.06),
+                                                blurRadius: 6,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
-                                      child: SizedBox(
-                                        height: 39,
-                                        child: TextField(
-                                          controller: _searchController,
-                                          decoration: InputDecoration(
-                                            hintText: '상품 검색',
-                                            prefixIcon: const Icon(
-                                              Icons.search_rounded,
-                                              color: Color(0xFF2A2828),
-                                            ),
-                                            filled: true,
-                                            fillColor: Colors.white,
-                                            border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(9),
-                                              borderSide: const BorderSide(
-                                                color: Color(0xFFE8DDD4),
-                                                width: 2,
+                                          child: SizedBox(
+                                            height: tall ? 44 : 39,
+                                            child: TextField(
+                                              controller: _searchController,
+                                              decoration: InputDecoration(
+                                                hintText: '상품 검색',
+                                                prefixIcon: Icon(
+                                                  Icons.search_rounded,
+                                                  color:
+                                                      const Color(0xFF2A2828),
+                                                  size: tall ? 26 : null,
+                                                ),
+                                                prefixIconConstraints: tall
+                                                    ? const BoxConstraints(
+                                                        minWidth: 44,
+                                                        minHeight: 44)
+                                                    : null,
+                                                filled: true,
+                                                fillColor: Colors.white,
+                                                border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(9),
+                                                  borderSide: const BorderSide(
+                                                    color: Color(0xFFE8DDD4),
+                                                    width: 2,
+                                                  ),
+                                                ),
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(9),
+                                                  borderSide: const BorderSide(
+                                                    color: Color(0xFFE8DDD4),
+                                                    width: 2,
+                                                  ),
+                                                ),
+                                                contentPadding: tall
+                                                    ? EdgeInsets.zero
+                                                    : const EdgeInsets
+                                                        .symmetric(
+                                                        vertical: 8),
                                               ),
-                                            ),
-                                            enabledBorder: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(9),
-                                              borderSide: const BorderSide(
-                                                color: Color(0xFFE8DDD4),
-                                                width: 2,
-                                              ),
-                                            ),
-                                            contentPadding: const EdgeInsets.symmetric(
-                                              vertical: 8,
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
+                                      const SizedBox(width: 7),
+                                      SizedBox(
+                                        width: 79,
+                                        height: tall ? 44 : 39,
+                                        child: _DrawerSortButton(
+                                          sort: _sort,
+                                          onChanged: (value) {
+                                            StickerlySfx.play(
+                                                StickerlyAssets.soundFlip);
+                                            setState(() {
+                                              _sort = value;
+                                              _storeLandscapePage = 0;
+                                            });
+                                            if (_storeLandscapePageController
+                                                .hasClients) {
+                                              _storeLandscapePageController
+                                                  .jumpToPage(0);
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 7),
-                                  SizedBox(
-                                    width: 79,
-                                    height: 39,
-                                    child: _DrawerSortButton(
-                                      sort: _sort,
-                                      onChanged: (value) {
-                                        StickerlySfx.play(StickerlyAssets.soundFlip);
-                                        setState(() => _sort = value);
-                                      },
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: _StoreHeroBanner(
+                                          imageUrl: _storeBannerUrl,
+                                          fit: BoxFit.fitWidth),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: DecoratedBox(
-                                    decoration: const BoxDecoration(
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Color.fromRGBO(0, 0, 0, 0.09),
-                                          blurRadius: 10,
-                                          offset: Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: _StoreHeroBanner(imageUrl: _storeBannerUrl, fit: BoxFit.fitWidth),
+                            ),
+                          );
+
+                      // ── 태블릿 가로: 3×3 페이지 슬라이드 ─────────────────
+                      if (isTablet) {
+                        final leftWidth = (constraints.maxWidth * 0.38)
+                            .clamp(280.0, 420.0);
+                        const hPad = 12.0;
+                        const vPad = 10.0;
+                        const spacing = 10.0;
+                        final rightWidth =
+                            constraints.maxWidth - leftWidth - 2;
+                        final cardW =
+                            (rightWidth - hPad * 2 - spacing * 2) / 3;
+                        final cardH =
+                            (constraints.maxHeight - vPad * 2 - spacing * 2 -
+                                28) /
+                            3;
+                        final pageCount =
+                            products.isEmpty ? 1 : (products.length + 8) ~/ 9;
+
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            buildLeft(leftWidth, tall: true),
+                            Container(
+                              width: 2,
+                              margin:
+                                  const EdgeInsets.fromLTRB(0, 14, 0, 14),
+                              color: const Color(0xFFE8DDD4),
+                            ),
+                            SizedBox(
+                              width: rightWidth,
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: _loading
+                                        ? const Center(
+                                            child:
+                                                CircularProgressIndicator())
+                                        : _error != null
+                                            ? _ErrorState(
+                                                onRetry: _loadProducts)
+                                            : products.isEmpty
+                                                ? const Center(
+                                                    child:
+                                                        Text('상품이 없어요.'))
+                                                : PageView.builder(
+                                                    controller:
+                                                        _storeLandscapePageController,
+                                                    onPageChanged: (p) =>
+                                                        setState(() =>
+                                                            _storeLandscapePage =
+                                                                p),
+                                                    itemCount: pageCount,
+                                                    itemBuilder:
+                                                        (context, pageIdx) {
+                                                      final start =
+                                                          pageIdx * 9;
+                                                      final end = (start + 9)
+                                                          .clamp(0,
+                                                              products.length);
+                                                      return GridView.builder(
+                                                        physics:
+                                                            const NeverScrollableScrollPhysics(),
+                                                        padding: const EdgeInsets
+                                                            .fromLTRB(hPad,
+                                                            vPad, hPad, vPad),
+                                                        gridDelegate:
+                                                            SliverGridDelegateWithFixedCrossAxisCount(
+                                                          crossAxisCount: 3,
+                                                          crossAxisSpacing:
+                                                              spacing,
+                                                          mainAxisSpacing:
+                                                              spacing,
+                                                          childAspectRatio:
+                                                              (cardW / cardH)
+                                                                  .clamp(
+                                                                      0.4,
+                                                                      2.5),
+                                                        ),
+                                                        itemCount: end - start,
+                                                        itemBuilder: (context,
+                                                            index) {
+                                                          final i =
+                                                              start + index;
+                                                          return _StoreProductCard(
+                                                            product:
+                                                                products[i],
+                                                            buying: _buyingProductId ==
+                                                                products[i].id,
+                                                            owned: _ownsProduct(
+                                                                products[i]),
+                                                            onOpen: () {
+                                                              Navigator.of(
+                                                                      context)
+                                                                  .push(
+                                                                MaterialPageRoute<
+                                                                    void>(
+                                                                  builder: (_) =>
+                                                                      _ProductDetailsScreen(
+                                                                    product:
+                                                                        products[i],
+                                                                    catalog: widget
+                                                                        .catalog,
+                                                                    owned: _ownsProduct(
+                                                                        products[
+                                                                            i]),
+                                                                    buying: _buyingProductId ==
+                                                                        products[i]
+                                                                            .id,
+                                                                    onBuy: () =>
+                                                                        _buyProduct(
+                                                                            products[i]),
+                                                                  ),
+                                                                ),
+                                                              );
+                                                            },
+                                                            onOwnedNotice: () {
+                                                              ScaffoldMessenger
+                                                                      .of(context)
+                                                                  .showSnackBar(
+                                                                const SnackBar(
+                                                                    content: Text(
+                                                                        '이미 보유중입니다.')),
+                                                              );
+                                                            },
+                                                            onBuy: () =>
+                                                                _buyProduct(
+                                                                    products[
+                                                                        i]),
+                                                          );
+                                                        },
+                                                      );
+                                                    },
+                                                  ),
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Container(
-                        width: 2,
-                        margin: const EdgeInsets.fromLTRB(0, 14, 0, 14),
-                        color: const Color(0xFFE8DDD4),
-                      ),
-                      // 우측 패널: 상품 목록
-                      Expanded(
-                        child: Builder(
-                          builder: (context) {
-                            if (_loading) {
-                              return const Center(child: CircularProgressIndicator());
-                            }
-                            if (_error != null) {
-                              return _ErrorState(onRetry: _loadProducts);
-                            }
-                            if (products.isEmpty) {
-                              return const Center(child: Text('상품이 없어요.'));
-                            }
-                            return GridView.builder(
-                              padding: const EdgeInsets.fromLTRB(10, 10, 10, 20),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 8,
-                                mainAxisSpacing: 8,
-                                childAspectRatio: 1.2,
-                              ),
-                              itemCount: products.length,
-                              itemBuilder: (context, index) => _StoreProductCard(
-                                product: products[index],
-                                buying: _buyingProductId == products[index].id,
-                                owned: _ownsProduct(products[index]),
-                                onOpen: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => _ProductDetailsScreen(
-                                        product: products[index],
-                                        catalog: widget.catalog,
-                                        owned: _ownsProduct(products[index]),
-                                        buying: _buyingProductId == products[index].id,
-                                        onBuy: () => _buyProduct(products[index]),
+                                  if (!_loading &&
+                                      _error == null &&
+                                      products.isNotEmpty &&
+                                      pageCount > 1)
+                                    _PageDots(
+                                      page: _storeLandscapePage,
+                                      pageCount: pageCount,
+                                      onChanged: (i) =>
+                                          _storeLandscapePageController
+                                              .animateToPage(
+                                        i,
+                                        duration:
+                                            const Duration(milliseconds: 300),
+                                        curve: Curves.easeInOut,
                                       ),
                                     ),
-                                  );
-                                },
-                                onOwnedNotice: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('이미 보유중입니다.')),
-                                  );
-                                },
-                                onBuy: () => _buyProduct(products[index]),
+                                ],
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
+                            ),
+                          ],
+                        );
+                      }
+
+                      // ── 폰 가로: 기존 레이아웃 ────────────────────────────
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          buildLeft(290),
+                          Container(
+                            width: 2,
+                            margin:
+                                const EdgeInsets.fromLTRB(0, 14, 0, 14),
+                            color: const Color(0xFFE8DDD4),
+                          ),
+                          Expanded(
+                            child: Builder(
+                              builder: (context) {
+                                if (_loading) {
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                }
+                                if (_error != null) {
+                                  return _ErrorState(onRetry: _loadProducts);
+                                }
+                                if (products.isEmpty) {
+                                  return const Center(
+                                      child: Text('상품이 없어요.'));
+                                }
+                                return GridView.builder(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      10, 10, 10, 20),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    crossAxisSpacing: 8,
+                                    mainAxisSpacing: 8,
+                                    childAspectRatio: 1.2,
+                                  ),
+                                  itemCount: products.length,
+                                  itemBuilder: (context, index) =>
+                                      _StoreProductCard(
+                                    product: products[index],
+                                    buying: _buyingProductId ==
+                                        products[index].id,
+                                    owned: _ownsProduct(products[index]),
+                                    onOpen: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) =>
+                                              _ProductDetailsScreen(
+                                            product: products[index],
+                                            catalog: widget.catalog,
+                                            owned:
+                                                _ownsProduct(products[index]),
+                                            buying: _buyingProductId ==
+                                                products[index].id,
+                                            onBuy: () =>
+                                                _buyProduct(products[index]),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    onOwnedNotice: () {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content:
+                                                Text('이미 보유중입니다.')),
+                                      );
+                                    },
+                                    onBuy: () => _buyProduct(products[index]),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 )
               else ...[
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: SizedBox(
-                    height: 156,
-                    width: double.infinity,
-                    child: DecoratedBox(
-                      decoration: const BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color.fromRGBO(0, 0, 0, 0.09),
-                            blurRadius: 10,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: _StoreHeroBanner(imageUrl: _storeBannerUrl),
-                    ),
+                  child: AspectRatio(
+                    aspectRatio: 390 / 156,
+                    child: _StoreHeroBanner(imageUrl: _storeBannerUrl),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(7, 22, 7, 8),
+                  padding: const EdgeInsets.fromLTRB(7, 6, 7, 6),
                   child: Row(
                     children: [
                       Expanded(
@@ -2391,7 +2712,7 @@ class _StoreScreenState extends State<_StoreScreen> {
                             ],
                           ),
                           child: SizedBox(
-                            height: 39,
+                            height: 44,
                             child: TextField(
                               controller: _searchController,
                               decoration: InputDecoration(
@@ -2399,6 +2720,11 @@ class _StoreScreenState extends State<_StoreScreen> {
                                 prefixIcon: const Icon(
                                   Icons.search_rounded,
                                   color: Color(0xFF2A2828),
+                                  size: 26,
+                                ),
+                                prefixIconConstraints: const BoxConstraints(
+                                  minWidth: 44,
+                                  minHeight: 44,
                                 ),
                                 filled: true,
                                 fillColor: Colors.white,
@@ -2416,9 +2742,7 @@ class _StoreScreenState extends State<_StoreScreen> {
                                     width: 2,
                                   ),
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 8,
-                                ),
+                                contentPadding: EdgeInsets.zero,
                               ),
                             ),
                           ),
@@ -2427,12 +2751,18 @@ class _StoreScreenState extends State<_StoreScreen> {
                       const SizedBox(width: 7),
                       SizedBox(
                         width: 79,
-                        height: 39,
+                        height: 44,
                         child: _DrawerSortButton(
                           sort: _sort,
                           onChanged: (value) {
                             StickerlySfx.play(StickerlyAssets.soundFlip);
-                            setState(() => _sort = value);
+                            setState(() {
+                              _sort = value;
+                              _storePortraitPage = 0;
+                            });
+                            if (_storePortraitPageController.hasClients) {
+                              _storePortraitPageController.jumpToPage(0);
+                            }
                           },
                         ),
                       ),
@@ -2440,8 +2770,8 @@ class _StoreScreenState extends State<_StoreScreen> {
                   ),
                 ),
                 Expanded(
-                  child: Builder(
-                    builder: (context) {
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
                       if (_loading) {
                         return const Center(child: CircularProgressIndicator());
                       }
@@ -2451,37 +2781,102 @@ class _StoreScreenState extends State<_StoreScreen> {
                       if (products.isEmpty) {
                         return const Center(child: Text('상품이 없어요.'));
                       }
-                      return ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(10, 20, 10, 28),
-                        itemCount: products.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 6),
-                        itemBuilder: (context, index) => SizedBox(
-                          height: 229,
-                          child: _StoreProductCard(
-                            product: products[index],
-                            buying: _buyingProductId == products[index].id,
-                            owned: _ownsProduct(products[index]),
-                            onOpen: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => _ProductDetailsScreen(
-                                    product: products[index],
-                                    catalog: widget.catalog,
-                                    owned: _ownsProduct(products[index]),
-                                    buying: _buyingProductId == products[index].id,
-                                    onBuy: () => _buyProduct(products[index]),
+                      final isTablet =
+                          MediaQuery.sizeOf(context).shortestSide > 600;
+                      // 태블릿: 2열2행(4개/페이지), 모바일: 1열2행(2개/페이지)
+                      final cols = isTablet ? 2 : 1;
+                      const rows = 2;
+                      const hPad = 10.0;
+                      const vPad = 6.0;
+                      const spacing = 8.0;
+                      final cardW = cols == 1
+                          ? constraints.maxWidth - hPad * 2
+                          : (constraints.maxWidth - hPad * 2 - spacing) / 2;
+                      final cardH =
+                          (constraints.maxHeight - vPad - spacing - 28) /
+                              rows;
+                      final perPage = cols * rows;
+                      final pageCount = products.isEmpty
+                          ? 1
+                          : (products.length + perPage - 1) ~/ perPage;
+
+                      return Column(
+                        children: [
+                          Expanded(
+                            child: PageView.builder(
+                              controller: _storePortraitPageController,
+                              onPageChanged: (p) =>
+                                  setState(() => _storePortraitPage = p),
+                              itemCount: pageCount,
+                              itemBuilder: (context, pageIdx) {
+                                final start = pageIdx * perPage;
+                                final end = (start + perPage)
+                                    .clamp(0, products.length);
+                                return GridView.builder(
+                                  physics:
+                                      const NeverScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.fromLTRB(
+                                      hPad, vPad, hPad, vPad),
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: cols,
+                                    crossAxisSpacing: spacing,
+                                    mainAxisSpacing: spacing,
+                                    childAspectRatio:
+                                        (cardW / cardH).clamp(0.3, 3.0),
                                   ),
-                                ),
-                              );
-                            },
-                            onOwnedNotice: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('이미 보유중입니다.')),
-                              );
-                            },
-                            onBuy: () => _buyProduct(products[index]),
+                                  itemCount: end - start,
+                                  itemBuilder: (context, index) {
+                                    final i = start + index;
+                                    return _StoreProductCard(
+                                      product: products[i],
+                                      buying:
+                                          _buyingProductId == products[i].id,
+                                      owned: _ownsProduct(products[i]),
+                                      onOpen: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) =>
+                                                _ProductDetailsScreen(
+                                              product: products[i],
+                                              catalog: widget.catalog,
+                                              owned:
+                                                  _ownsProduct(products[i]),
+                                              buying: _buyingProductId ==
+                                                  products[i].id,
+                                              onBuy: () =>
+                                                  _buyProduct(products[i]),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      onOwnedNotice: () {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content:
+                                                  Text('이미 보유중입니다.')),
+                                        );
+                                      },
+                                      onBuy: () => _buyProduct(products[i]),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
                           ),
-                        ),
+                          if (pageCount > 1)
+                            _PageDots(
+                              page: _storePortraitPage,
+                              pageCount: pageCount,
+                              onChanged: (i) =>
+                                  _storePortraitPageController.animateToPage(
+                                i,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              ),
+                            ),
+                        ],
                       );
                     },
                   ),
@@ -3754,10 +4149,70 @@ class _HomeProfileButton extends StatelessWidget {
 }
 
 class _HomeAdPlaceholder extends StatelessWidget {
-  const _HomeAdPlaceholder();
+  const _HomeAdPlaceholder({this.banner = false});
+
+  /// banner=true: landscape 우하단용 (둥근 테두리)
+  final bool banner;
+
+  // 폰 기준 비율: 390 × 108
+  static const _phoneRatio = 390.0 / 108.0;
 
   @override
   Widget build(BuildContext context) {
+    final isTablet = MediaQuery.sizeOf(context).shortestSide > 600;
+
+    if (banner) {
+      // 태블릿 가로 우측 패널 — 폰 비율 유지
+      return AspectRatio(
+        aspectRatio: _phoneRatio,
+        child: Container(
+          width: double.infinity,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(0xFFEDEDED),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Colors.black.withValues(alpha: 0.08),
+            ),
+          ),
+          child: const Text(
+            '배너 광고',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 20,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (isTablet) {
+      // 태블릿 세로 하단 — 폰 비율 유지
+      return AspectRatio(
+        aspectRatio: _phoneRatio,
+        child: Container(
+          width: double.infinity,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(0xFFEDEDED),
+            border: Border(
+              top: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
+            ),
+          ),
+          child: const Text(
+            '배너 광고',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 24,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 폰 — 기존 고정 높이 108px
     return Container(
       height: 108,
       width: double.infinity,
@@ -4438,12 +4893,14 @@ class _DrawerStoreButton extends StatelessWidget {
 }
 
 class _DrawerSearchField extends StatelessWidget {
-  const _DrawerSearchField({required this.onChanged});
+  const _DrawerSearchField({required this.onChanged, this.iconSize = 21});
 
   final ValueChanged<String> onChanged;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
+    final centered = iconSize > 21;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFFFEFEFE),
@@ -4459,10 +4916,15 @@ class _DrawerSearchField extends StatelessWidget {
       ),
       child: TextField(
         onChanged: onChanged,
-        decoration: const InputDecoration(
-          prefixIcon: Icon(Icons.search_rounded, size: 21),
+        decoration: InputDecoration(
+          prefixIcon: Icon(Icons.search_rounded, size: iconSize),
+          prefixIconConstraints: centered
+              ? BoxConstraints(minWidth: iconSize + 16, minHeight: iconSize)
+              : null,
           border: InputBorder.none,
-          contentPadding: EdgeInsets.only(top: 8),
+          contentPadding: centered
+              ? EdgeInsets.zero
+              : const EdgeInsets.only(top: 8),
         ),
       ),
     );
